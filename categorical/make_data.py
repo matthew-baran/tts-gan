@@ -13,6 +13,7 @@ import pickle
 
 # Note 1-based indexing for shell-types with 0 reserved for "no shell"
 
+
 @click.command()
 @click.option("--num-samples", default=1000, help="Number of sample shows to generate.")
 @click.option("--num-shell-types", default=5, help="Number of unique shell types")
@@ -28,11 +29,10 @@ def make_data(num_samples, num_shell_types, time_step, max_duration, min_duratio
     time = numpy.array([j * time_step for j in range(num_time_steps)])
 
     for i in range(samples.shape[0]):
-        samples[i][0] = make_saw_tooth(
-            time, num_shell_types, min_duration, max_duration
-        )
-        samples[i][1] = make_sine(time, num_shell_types, min_duration, max_duration)
-        samples[i][2] = make_constant(time, num_shell_types, min_duration, max_duration)
+        samples[i][0] = make_saw_tooth(time, num_shell_types)
+        samples[i][1] = make_sine(time, num_shell_types)
+        samples[i][2] = make_constant(time, num_shell_types)
+        samples[i] = clip_show_time(samples[i], time, min_duration, max_duration)
 
     data = {
         "samples": samples,
@@ -47,31 +47,28 @@ def make_data(num_samples, num_shell_types, time_step, max_duration, min_duratio
         pickle.dump(data, f)
 
 
-def make_saw_tooth(time, num_shell_types, min_duration, max_duration):
-    stride = numpy.random.randint(1, 8)
+def make_saw_tooth(time, num_shell_types):
+    stride = numpy.random.randint(2, 16)
     idx = range(0, len(time), stride)
     show = numpy.zeros(time.shape)
     show[idx] = numpy.mod(range(0, len(idx)), num_shell_types) + 1
-    print(show[0:25])
-    return clip_show_time(show, time, min_duration, max_duration)
+    return show
 
 
-def make_sine(time, num_shell_types, min_duration, max_duration):
-    show = numpy.round(
-        num_shell_types * (numpy.sin(time * 2 * math.pi * 1 / 20) * 0.5 + 0.5) + 1
+def make_sine(time, num_shell_types):
+    return numpy.round(
+        (num_shell_types - 1) * (numpy.sin(time * 2 * math.pi * 1 / 20) * 0.5 + 0.5) + 1
     )
-    return clip_show_time(show, time, min_duration, max_duration)
 
 
-def make_constant(time, num_shell_types, min_duration, max_duration):
+def make_constant(time, num_shell_types):
     shell = numpy.random.randint(0, num_shell_types) + 1
-    show = shell * numpy.ones(time.shape)
-    return clip_show_time(show, time, min_duration, max_duration)
+    return shell * numpy.ones(time.shape)
 
 
 def clip_show_time(show, time, min_duration, max_duration):
     stop_time = min_duration + numpy.random.rand() * (max_duration - min_duration)
-    show[time > stop_time] = 0
+    show[:, :, time > stop_time] = 0
     return show
 
 
